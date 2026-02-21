@@ -19,7 +19,11 @@ RUN pip install --no-cache-dir \
 
 # ── Clone and compile PLMC with OpenMP ───────────────────────────────────────
 RUN mkdir -p repo && \
-    git clone --depth 1 https://github.com/debbiemarkslab/plmc.git repo/plmc && \
+    for attempt in 1 2 3; do \
+      echo "Clone attempt $attempt/3"; \
+      git clone --depth 1 https://github.com/debbiemarkslab/plmc.git repo/plmc && break; \
+      if [ $attempt -lt 3 ]; then sleep 5; fi; \
+    done && \
     cd repo/plmc && make -j$(nproc) all-openmp
 
 # ── Copy application source ─────────────────────────────────────────────────
