@@ -1,7 +1,7 @@
 FROM continuumio/miniconda3:24.7.1-0
 
 # Install build tools for compiling PLMC (needs gcc + OpenMP)
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     git build-essential libgomp1 perl \
     && rm -rf /var/lib/apt/lists/*
 
@@ -24,8 +24,14 @@ RUN mkdir -p repo && \
 
 # ── Copy application source ─────────────────────────────────────────────────
 COPY src/ ./src/
-RUN mkdir -p tmp/inputs tmp/outputs
+RUN chmod -R a+r /app/src/
+RUN mkdir -p tmp/inputs tmp/outputs /tmp/.cache && \
+    chmod -R 1777 /app/tmp /tmp/.cache
 
 ENV PYTHONPATH=/app
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1
+ENV HOME=/tmp
+ENV XDG_CACHE_HOME=/tmp/.cache
 
 CMD ["python", "src/server.py"]
