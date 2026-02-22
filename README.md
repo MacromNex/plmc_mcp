@@ -1,67 +1,139 @@
-# MCP service to run [`PLMC`](https://github.com/debbiemarkslab/plmc)
+# PLMC MCP
 
-## Installation
+**Evolutionary coupling model training using PLMC via Docker**
 
-### Quick Setup (Recommended)
+An MCP (Model Context Protocol) server for evolutionary coupling analysis with 2 core tools:
+- Convert protein sequence alignments from A3M to A2M format
+- Train PLMC evolutionary coupling models from sequence alignments
 
-Run the automated setup script:
+## Quick Start with Docker
+
+### Approach 1: Pull Pre-built Image from GitHub
+
+The fastest way to get started. A pre-built Docker image is automatically published to GitHub Container Registry on every release.
 
 ```bash
+# Pull the latest image
+docker pull ghcr.io/macromnex/plmc_mcp:latest
+
+# Register with Claude Code (runs as current user to avoid permission issues)
+claude mcp add plmc -- docker run -i --rm --user `id -u`:`id -g` -v `pwd`:`pwd` ghcr.io/macromnex/plmc_mcp:latest
+```
+
+**Note:** Run from your project directory. `` `pwd` `` expands to the current working directory.
+
+**Requirements:**
+- Docker
+- Claude Code installed
+
+That's it! The PLMC MCP server is now available in Claude Code.
+
+---
+
+### Approach 2: Build Docker Image Locally
+
+Build the image yourself and install it into Claude Code. Useful for customization or offline environments.
+
+```bash
+# Clone the repository
+git clone https://github.com/MacromNex/plmc_mcp.git
 cd plmc_mcp
-bash quick_setup.sh
+
+# Build the Docker image
+docker build -t plmc_mcp:latest .
+
+# Register with Claude Code (runs as current user to avoid permission issues)
+claude mcp add plmc -- docker run -i --rm --user `id -u`:`id -g` -v `pwd`:`pwd` plmc_mcp:latest
 ```
 
-The script will create the conda environment, clone the PLMC repository, build the binaries, install all dependencies, and display the Claude Code configuration. See `quick_setup.sh --help` for options like `--skip-env` or `--skip-repo`.
+**Note:** Run from your project directory. `` `pwd` `` expands to the current working directory.
 
-### Manual Installation (Alternative)
+**Requirements:**
+- Docker
+- Claude Code installed
+- Git (to clone the repository)
+
+**About the Docker Flags:**
+- `-i` — Interactive mode for Claude Code
+- `--rm` — Automatically remove container after exit
+- `` --user `id -u`:`id -g` `` — Runs the container as your current user, so output files are owned by you (not root)
+- `-v` — Mounts your project directory so the container can access your data
+
+---
+
+## Verify Installation
+
+After adding the MCP server, you can verify it's working:
 
 ```bash
-# Create environment
-mamba env create -p ./env python=3.10 pip
-mamba activate ./env
+# List registered MCP servers
+claude mcp list
 
-# EVcouplings
-pip install https://github.com/debbiemarkslab/EVcouplings/archive/develop.zip
-
-# Install plmc
-git clone https://github.com/debbiemarkslab/plmc.git
-cd plmc
-
-# or cd repo/plmc
-make all-openmp
-mamba install -c conda-forge -c bioconda hhsuite
-
-pip install fastmcp pydantic
+# You should see 'plmc' in the output
 ```
 
-## Local usage
-```shell
-PLMC_DIR=./repo
-DATASET=notebooks/example
+In Claude Code, you can now use all 2 PLMC tools:
+- `plmc_convert_a3m_to_a2m`
+- `plmc_generate_model`
 
-# reformat a3m to a2m (a3m is the mmseqs2 output format)
-reformat.pl a3m a2m  $DATASET/DHFR.a3m $DATASET/DHFR.a2m
-python notebooks/rm_a2m_query_gaps.py $DATASET/DHFR.a2m $DATASET/alignment.a2m
+---
 
-$PLMC_DIR/plmc/bin/plmc \
-    -o $DATASET/plmc/uniref100.model_params \
-    -c $DATASET/plmc/uniref100.EC \
-    -f $PROTEIN \
-    -le 16.2 -lh 0.01 -m 200 -t 0.2 \
-    -g $DATASET/alignment.a2m
+## Next Steps
+
+- **Detailed documentation**: See [detail.md](detail.md) for comprehensive guides on:
+  - Available MCP tools and parameters
+  - Local Python environment setup (alternative to Docker)
+  - Example workflows and use cases
+  - Troubleshooting
+
+---
+
+## Usage Examples
+
+Once registered, you can use the PLMC tools directly in Claude Code. Here are some common workflows:
+
+### Example 1: Build an Evolutionary Coupling Model
 
 ```
-
-## MCP usage
-### Install mcp
-```shell
-# Install `plmc` mcp
-fastmcp install claude-code tool-mcps/plmc_mcp/src/server.py --python tool-mcps/plmc_mcp/env/bin/python
+I have created an A3M file for subtilisin BPN' at /path/to/subtilisin.a3m. Can you help build an EV model using the plmc MCP and create it in /path/to/plmc/ directory? The wild-type sequence is at /path/to/wt.fasta.
 ```
-## Call MCP
 
-```markdown
-I have created a a3m file for subtilisin BPN' in file @examples/case2.1_subtilisin/subtilisin.a3m. Can you help build a ev model using plmc mcp and create it to @examples/case2.1_subtilisin/plmc directory. The wild-type sequence is @examples/case2.1_subtilisin/wt.fasta.
+### Example 2: Convert A3M to A2M Format
 
-Please convert the relative path to absolution path before calling the MCP servers.
 ```
+I have an A3M alignment file at /path/to/protein.a3m from MMseqs2. Can you convert it to A2M format and remove query gaps using plmc_convert_a3m_to_a2m, saving to /path/to/protein.a2m?
+```
+
+### Example 3: Full EV Model Workflow
+
+```
+I have an MSA in A3M format at /path/to/protein.a3m and wild-type sequence at /path/to/wt.fasta.
+1. First convert the A3M to A2M format using plmc_convert_a3m_to_a2m
+2. Then train a PLMC model using plmc_generate_model, saving parameters to /path/to/plmc/
+```
+
+---
+
+## Troubleshooting
+
+**Docker not found?**
+```bash
+docker --version  # Install Docker if missing
+```
+
+**Claude Code not found?**
+```bash
+# Install Claude Code
+npm install -g @anthropic-ai/claude-code
+```
+
+**Model training failed?**
+- Ensure the A2M alignment file has the correct format (no query gaps)
+- Verify the wild-type sequence matches the alignment focus sequence
+- Check that the alignment has sufficient sequence diversity
+
+---
+
+## License
+
+MIT — Based on [PLMC](https://github.com/debbiemarkslab/plmc) by Debbie Marks Lab.
